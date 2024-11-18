@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 09:50:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-10-31 17:05:20
+LastEditTime: 2024-11-01 09:56:05
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/model.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -40,39 +40,53 @@ class HeteroAttentionLayer(MessagePassing):
 
     def forward(self, x_dict, edge_index_dict):
         out_dict = {}
-        for edge_type, edge_index in edge_index_dict.items():
-            src_type, _, dst_type = edge_type
+        
+        # Iterate over all nodes in the graph to calculate messages
+        # 首先遍历所有节点，找出node_type对应的边
+        for node_type, node_feats in x_dict.items():
+            if node_type not in out_dict:
+                out_dict[node_type] = torch.zeros_like(node_feats)
 
-            # 获取源和目标节点的嵌入
-            q = self.q_dict[src_type](x_dict[src_type])
-            k = self.k_dict[dst_type](x_dict[dst_type])
-            v = self.v_dict[src_type](x_dict[src_type])
-            # print(f'q.shape={q.shape}')
-            # print(edge_index[0])
-            # 根据边类型应用不同的权重矩阵
-            edge_type_str = f"{edge_type}"
-            W = self.w_dict[edge_type_str].weight
-            # print(f'W.shape={W.shape}')
-            
-            alpha = (q[edge_index[0]] @ W @ k[edge_index[1]].T) / (self.hidden_channels ** 0.5)
-            alpha = F.leaky_relu(alpha)
-            alpha = F.softmax(alpha, dim=-1)
-            # print(f'alpha={alpha}')
-            # print(v[edge_index[0]])
-            # 加权聚合邻居节点信息
-            out = alpha.unsqueeze(-1) * v[edge_index[0]]
-            
-            # # 计算 out 的求和
-            # out_sum = out.sum(dim=1)  # 结果形状为 [2, hidden_channels]
-            
-            # print(f'out_sum.shape={out_sum.shape}')
-            
-            if dst_type not in out_dict:
-                # 初始化时加上目标节点的原始嵌入
-                out_dict[dst_type] = x_dict[dst_type].clone()  # 使用 clone 确保创建一个新的张量以避免影响原始数据
+            for edge_type, edge_index in edge_index_dict.items():
+                src_type, _, dst_type = edge_type
+                if dst_type != node_type:
+                    continue  # Skip if the edge's destination does not match the current node type
                 
-            # 将 out_sum 加到目标节点的输出字典中
-            out_dict[dst_type].scatter_add_(0, edge_index[1],  out)
+                # 找到了一系列的边，其dst_type=node_type，edge_index为这些边的集合
+                # Calculate q, k, and v for source and destination nodes
+                q = self.q_dict[src_type](x_dict[src_type])
+                k = self.k_dict[dst_type](x_dict[dst_type])
+                v = self.v_dict[src_type](x_dict[src_type])
+                
+                # Extract edges relevant to the current node type
+                src_nodes = edge_index[0]
+                dst_nodes = edge_index[1]
+                
+                # Compute attention weights for each edge
+                W = self.w_dict[f"{edge_type}"].weight
+                # 遍历边并计算 alpha
+                alpha = []
+                for i in range(len(src_nodes)):
+                    u = src_nodes[i]
+                    j = dst_nodes[i]
+                    alpha_uv = (q[u] @ W @ k[j].T) / (self.hidden_channels ** 0.5)
+                    alpha.append(alpha_uv)
+                
+                alpha = torch.stack(alpha)
+                
+                # Apply softmax normalization to get \hat{\alpha}_{u,v}
+                alpha = F.softmax(alpha, dim=0)
+                print(f'alpha={alpha}')
+                # Compute weighted message
+                out_message = alpha.unsqueeze(-1) * v[src_nodes]
+                print(f'out_message={out_message.shape}')
+                print(f' dst_nodes={dst_nodes.shape}')
+                print(f' out_dict[dst_type]={out_dict[dst_type].shape}')
+                # Expand dst_nodes to match the shape of out_message
+
+                # Use scatter_add_ to aggregate out_message into out_dict
+                out_dict[dst_type].scatter_add_(0, dst_nodes.unsqueeze(-1).expand(-1, out_message.size(1)), out_message)
+
 
         return out_dict
 

@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-29 10:52:29
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-10-31 15:35:59
+LastEditTime: 2024-11-18 10:52:02
 FilePath: /Gnn/DHGNN-LSTM/Codes/main.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -13,12 +13,12 @@ from src import SequenceEncoder
 from src import GnnModel
 import torch
 
-# print("CUDA Available:", torch.cuda.is_available())
-# print("CUDA Device Count:", torch.cuda.device_count())
+print("CUDA Available:", torch.cuda.is_available())
+print("CUDA Device Count:", torch.cuda.device_count())
 
-# if torch.cuda.is_available():
-#     for i in range(torch.cuda.device_count()):
-#         print(f"Device {i}: {torch.cuda.get_device_name(i)}")
+if torch.cuda.is_available():
+    for i in range(torch.cuda.device_count()):
+        print(f"Device {i}: {torch.cuda.get_device_name(i)}")
 
 ip_encoder = SequenceEncoder(device='cuda:1' if torch.cuda.is_available() else 'cpu',model_path='/home/lzy/Gnn/DHGNN-LSTM/Codes/src/model/')
 
@@ -41,7 +41,7 @@ dataLoad.load_edge_csv(path_proxy,'id','belong','proxy','server','proxy2server')
 
 dataLoad.add_fully_connected_edges(node_type='user')
 # print(hasattr(dataLoad.data, 'metadata'))  # 检查是否有 metadata() 方法
-Model = GnnModel(512,dataLoad.data)
+Model = GnnModel(512,dataLoad.get_data())
 
 # 前向传播获取嵌入
 with torch.no_grad():  # 关闭梯度计算以加速推理
