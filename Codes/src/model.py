@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 09:50:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-18 16:10:17
+LastEditTime: 2024-11-18 17:02:11
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/model.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -38,7 +38,11 @@ class HeteroAttentionLayer(MessagePassing):
         for edge_type in metadata[1]:  # metadata[1]包含边类型
             edge_type_str = f"{edge_type}"  # 将元组转换为字符串
             self.w_dict[edge_type_str] = WeightParameter(hidden_channels)  # 使用自定义模块
-
+        
+        self.self_attention_dict = nn.ModuleDict()
+        for node_type in metadata[0]:  # metadata[0]包含节点类型
+            self.self_attention_dict[node_type] = nn.Linear(hidden_channels, hidden_channels)
+            
     def forward(self, x_dict, edge_index_dict):
         out_dict = {}
 
@@ -46,6 +50,13 @@ class HeteroAttentionLayer(MessagePassing):
             if node_type not in out_dict:
                 out_dict[node_type] = torch.zeros_like(node_feats)
 
+            q_self = self.q_dict[node_type](x_dict[node_type])  # 自身查询向量
+            k_self = self.k_dict[node_type](x_dict[node_type])  # 自身键向量
+            v_self = self.v_dict[node_type](x_dict[node_type])  # 自身值向量
+            raw_alpha_self = (q_self * k_self).sum(dim=-1) / (self.hidden_channels ** 0.5)  # 自注意力得分
+            normalized_alpha_self = F.softmax(raw_alpha_self, dim=0)  # 自注意力归一化
+            self_message = (normalized_alpha_self.unsqueeze(-1) * v_self)  # 自注意力消息
+            
             for edge_type, edge_index in edge_index_dict.items():
                 src_type, _, dst_type = edge_type
                 if dst_type != node_type:
@@ -63,10 +74,10 @@ class HeteroAttentionLayer(MessagePassing):
                 # Compute raw attention scores (alpha_uv)
                 W = self.w_dict[f"{edge_type}"].weight  # Weight matrix for this edge type
                 raw_alpha = (q[src_nodes] @ W @ k[dst_nodes].T).sum(dim=-1) / (self.hidden_channels ** 0.5)  # (num_edges,)
-
+                
                 # Normalize attention scores for each destination node independently
                 normalized_alpha = scatter_softmax(raw_alpha, dst_nodes, dim=0)  # (num_edges,)
-
+                # print(f'normalized_alpha={normalized_alpha}')
                 # Compute weighted messages
                 weighted_messages = normalized_alpha.unsqueeze(-1) * v[src_nodes]  # (num_edges, hidden_dim)
 
@@ -74,6 +85,7 @@ class HeteroAttentionLayer(MessagePassing):
                 out_dict[dst_type] = scatter_add(
                     weighted_messages, dst_nodes, dim=0, out=out_dict[dst_type]
                 )
+                out_dict[node_type] += self_message  # 加入自注意力消息
 
         return out_dict
 
