@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 09:50:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-01 09:56:05
+LastEditTime: 2024-11-18 16:10:17
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/model.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 import torch
 from torch_geometric.data import HeteroData
+from torch_scatter import scatter_softmax, scatter_add
 
 class WeightParameter(nn.Module):
     def __init__(self, hidden_channels):
@@ -40,9 +41,7 @@ class HeteroAttentionLayer(MessagePassing):
 
     def forward(self, x_dict, edge_index_dict):
         out_dict = {}
-        
-        # Iterate over all nodes in the graph to calculate messages
-        # 首先遍历所有节点，找出node_type对应的边
+
         for node_type, node_feats in x_dict.items():
             if node_type not in out_dict:
                 out_dict[node_type] = torch.zeros_like(node_feats)
@@ -51,42 +50,30 @@ class HeteroAttentionLayer(MessagePassing):
                 src_type, _, dst_type = edge_type
                 if dst_type != node_type:
                     continue  # Skip if the edge's destination does not match the current node type
-                
-                # 找到了一系列的边，其dst_type=node_type，edge_index为这些边的集合
-                # Calculate q, k, and v for source and destination nodes
-                q = self.q_dict[src_type](x_dict[src_type])
-                k = self.k_dict[dst_type](x_dict[dst_type])
-                v = self.v_dict[src_type](x_dict[src_type])
-                
-                # Extract edges relevant to the current node type
-                src_nodes = edge_index[0]
-                dst_nodes = edge_index[1]
-                
-                # Compute attention weights for each edge
-                W = self.w_dict[f"{edge_type}"].weight
-                # 遍历边并计算 alpha
-                alpha = []
-                for i in range(len(src_nodes)):
-                    u = src_nodes[i]
-                    j = dst_nodes[i]
-                    alpha_uv = (q[u] @ W @ k[j].T) / (self.hidden_channels ** 0.5)
-                    alpha.append(alpha_uv)
-                
-                alpha = torch.stack(alpha)
-                
-                # Apply softmax normalization to get \hat{\alpha}_{u,v}
-                alpha = F.softmax(alpha, dim=0)
-                print(f'alpha={alpha}')
-                # Compute weighted message
-                out_message = alpha.unsqueeze(-1) * v[src_nodes]
-                print(f'out_message={out_message.shape}')
-                print(f' dst_nodes={dst_nodes.shape}')
-                print(f' out_dict[dst_type]={out_dict[dst_type].shape}')
-                # Expand dst_nodes to match the shape of out_message
 
-                # Use scatter_add_ to aggregate out_message into out_dict
-                out_dict[dst_type].scatter_add_(0, dst_nodes.unsqueeze(-1).expand(-1, out_message.size(1)), out_message)
+                # Apply linear transformations
+                q = self.q_dict[src_type](x_dict[src_type])  # (num_src_nodes, hidden_dim)
+                k = self.k_dict[dst_type](x_dict[dst_type])  # (num_dst_nodes, hidden_dim)
+                v = self.v_dict[src_type](x_dict[src_type])  # (num_src_nodes, hidden_dim)
 
+                # Extract source and destination nodes for edges
+                src_nodes = edge_index[0]  # Source nodes for edges
+                dst_nodes = edge_index[1]  # Destination nodes for edges
+
+                # Compute raw attention scores (alpha_uv)
+                W = self.w_dict[f"{edge_type}"].weight  # Weight matrix for this edge type
+                raw_alpha = (q[src_nodes] @ W @ k[dst_nodes].T).sum(dim=-1) / (self.hidden_channels ** 0.5)  # (num_edges,)
+
+                # Normalize attention scores for each destination node independently
+                normalized_alpha = scatter_softmax(raw_alpha, dst_nodes, dim=0)  # (num_edges,)
+
+                # Compute weighted messages
+                weighted_messages = normalized_alpha.unsqueeze(-1) * v[src_nodes]  # (num_edges, hidden_dim)
+
+                # Aggregate messages to destination nodes
+                out_dict[dst_type] = scatter_add(
+                    weighted_messages, dst_nodes, dim=0, out=out_dict[dst_type]
+                )
 
         return out_dict
 
@@ -99,10 +86,7 @@ class GNN(torch.nn.Module):
         self.conv2 = HeteroAttentionLayer(hidden_channels, metadata)
 
     def forward(self, x_dict, edge_index_dict):
-        # print(f'second{type(edge_index_dict)}')  # 确认 edge_index_dict 是否是字典类型
-
         x_dict = self.conv1(x_dict, edge_index_dict)
-        # x_dict = {key: F.relu(x) for key, x in x_dict.items()}
         x_dict = self.conv2(x_dict, edge_index_dict)
         return x_dict
 
