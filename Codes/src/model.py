@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 09:50:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-18 17:02:11
+LastEditTime: 2024-11-19 10:46:49
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/model.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -102,14 +102,6 @@ class GNN(torch.nn.Module):
         x_dict = self.conv2(x_dict, edge_index_dict)
         return x_dict
 
-class Classifier(torch.nn.Module):
-    def forward(self, x_user: Tensor, x_movie: Tensor, edge_label_index: Tensor) -> Tensor:
-        # 将节点嵌入转换为边表示：
-        edge_feat_user = x_user[edge_label_index[0]]
-        edge_feat_movie = x_movie[edge_label_index[1]]
-        # Apply dot-product to get a prediction per supervision edge:
-        return (edge_feat_user * edge_feat_movie).sum(dim=-1)
-    
 class GnnModel(torch.nn.Module):
     def __init__(self, hidden_channels,data:HeteroData):
         super().__init__()
@@ -136,7 +128,6 @@ class GnnModel(torch.nn.Module):
         self.gnn = GNN(hidden_channels,data.metadata())
         # Convert GNN model into a heterogeneous variant:
         # self.gnn = to_hetero(self.gnn, metadata=data.metadata())     
-        self.classifier = Classifier()
         
     def forward(self, data: HeteroData) -> Tensor:
         x_dict = {
