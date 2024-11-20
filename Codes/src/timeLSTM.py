@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 16:53:02
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-19 10:56:03
+LastEditTime: 2024-11-20 15:37:19
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/time-LSTM.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -61,16 +61,37 @@ class TimeLSTM(nn.Module):
         self.cell = TimeLSTMCell(input_size, hidden_size)
 
     def forward(self, node_embeddings, time_deltas):
-        h, c = (torch.zeros(self.hidden_size), torch.zeros(self.hidden_size))
+        """
+        :param node_embeddings: [num_graphs, num_users, embedding_dim]
+        :param time_deltas: [num_graphs - 1]，图之间的时间间隔
+        """
+        num_graphs, num_users, _ = node_embeddings.size()
+        # 初始化隐藏状态和记忆单元
+        h = torch.zeros(num_users, self.hidden_size)  # [num_users, hidden_size]
+        c = torch.zeros(num_users, self.hidden_size)  # [num_users, hidden_size]
+        
+        # 存储所有时间步的隐藏状态
         hidden_states = []
         
-        for x, delta_t in zip(node_embeddings, time_deltas):
-            h, c = self.cell(x, delta_t, h, c)
-            hidden_states.append(h)
+        # 循环处理每个图
+        for i in range(num_graphs):
+            x = node_embeddings[i]  # 当前图的用户嵌入 [num_users, embedding_dim]
+            delta_t = time_deltas[i]   # 当前时间间隔
+            
+            # 更新隐藏状态和记忆单元
+            h, c = self.cell(x, delta_t, h, c)  # 支持批处理
+            hidden_states.append(h)  # 添加当前时间步的隐藏状态
         
-        cumulative_time_deltas = torch.cumsum(torch.tensor(time_deltas), dim=0)
-        weights = torch.softmax(-cumulative_time_deltas.float(), dim=0)  # 权重与时间反相关
-        time_agg_embedding = torch.sum(torch.stack(hidden_states) * weights.unsqueeze(-1), dim=0)
+        # 计算累积时间间隔
+        cumulative_time_deltas = torch.cumsum(time_deltas, dim=0)  
+
+        # 计算时间权重
+        weights = torch.softmax(-cumulative_time_deltas.float(), dim=0)  # 时间权重与间隔反相关
+        weights = weights.view(-1, 1)  # 转换为 [num_graphs, 1]，方便广播与hidden_states相乘
         
-        # Output the last hidden state as the time-aggregated embedding
+        # 按权重聚合所有时间步的隐藏状态
+        hidden_states = torch.stack(hidden_states, dim=0)  # [num_graphs, num_users, hidden_size]
+        time_agg_embedding = torch.sum(hidden_states * weights.unsqueeze(-1), dim=0)  # [num_users, hidden_size]
+        
+        # 返回聚合嵌入和所有隐藏状态
         return time_agg_embedding, hidden_states

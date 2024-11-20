@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-29 10:52:29
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-20 10:35:01
+LastEditTime: 2024-11-20 15:13:52
 FilePath: /Gnn/DHGNN-LSTM/Codes/main.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -31,20 +31,18 @@ encoders2 = {
     'name': ip_encoder  # 将 IP 列的编码器传入
 }
 
-path='./data_folder_20241029_110258'
+path='./data_folder'
 dataLoader1=GraphDataLoader(path,encoders1,encoders2)
-data=dataLoader1.load_graph_from_subfolder(path)
+data=dataLoader1.load_graphs_from_folder(path)
 
-user_time_sequences = []
-time_deltas = []
-last_time = 0
+time_deltas = [0,10]
 
 SModel=CombinedModel(256,512,data)
 
 # 前向传播获取嵌入
 
 with torch.no_grad():  # 关闭梯度计算以加速推理
-    embeddings,user_time_sequences,time_deltas= SModel(data,user_time_sequences,time_deltas,last_time)
+    embeddings= SModel(data,time_deltas)
     
 print(f'embeddings:{embeddings}')
 # print(dataLoad.data)
