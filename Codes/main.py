@@ -2,12 +2,12 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-29 10:52:29
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-19 10:54:23
+LastEditTime: 2024-11-20 10:35:01
 FilePath: /Gnn/DHGNN-LSTM/Codes/main.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
 import torch
-from src import LoadHeteroGraph
+from src import LoadHeteroGraph,GraphDataLoader
 from src import Config
 from src import SequenceEncoder
 from src import GnnModel
@@ -30,25 +30,21 @@ encoders1 = {
 encoders2 = {
     'name': ip_encoder  # 将 IP 列的编码器传入
 }
-dataLoad = LoadHeteroGraph()
-path_proxy='./data_folder_20241029_110258/proxys.csv'
-path_user='./data_folder_20241029_110258/users.csv'
-path_server='./data_folder_20241029_110258/servers.csv'
-dataLoad.load_node_csv(path_proxy,'id','proxy',encoders1)
-dataLoad.load_node_csv(path_server,'id','server',encoders1)
-dataLoad.load_node_csv(path_user,'id','user',encoders2)
-dataLoad.load_edge_csv(path_user,'id','belong','user','proxy','user2proxy')
-dataLoad.load_edge_csv(path_proxy,'id','belong','proxy','server','proxy2server')
 
-dataLoad.add_fully_connected_edges(node_type='user')
-# print(hasattr(dataLoad.data, 'metadata'))  # 检查是否有 metadata() 方法
+path='./data_folder_20241029_110258'
+dataLoader1=GraphDataLoader(path,encoders1,encoders2)
+data=dataLoader1.load_graph_from_subfolder(path)
 
-SModel=CombinedModel(256,512,dataLoad.get_data())
+user_time_sequences = []
+time_deltas = []
+last_time = 0
+
+SModel=CombinedModel(256,512,data)
 
 # 前向传播获取嵌入
 
 with torch.no_grad():  # 关闭梯度计算以加速推理
-    embeddings,_,_= SModel(dataLoad.get_data(),[],[],0)
+    embeddings,user_time_sequences,time_deltas= SModel(data,user_time_sequences,time_deltas,last_time)
     
 print(f'embeddings:{embeddings}')
 # print(dataLoad.data)
