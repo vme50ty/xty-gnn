@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-19 09:41:03
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-20 15:38:38
+LastEditTime: 2024-11-20 15:48:37
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/CombinedModel.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -55,7 +55,6 @@ class CombinedModel(torch.nn.Module):
             user_embeddings_combined,  # 时间序列的用户嵌入 [num_graphs, num_users, embedding_dim]
             time_deltas  # 时间间隔 [num_graphs-1, num_users]
         )
-        print(f'time_agg_embeddings={time_agg_embeddings}')
 
         # Step 4: 分类器
         user_logits = self.classifier(time_agg_embeddings)  # [num_users, num_classes]
