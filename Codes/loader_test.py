@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-12-16 10:12:28
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 17:00:41
+LastEditTime: 2024-12-16 19:50:21
 FilePath: /Gnn/DHGNN-LSTM/Codes/loader_test.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -17,7 +17,7 @@ from src import GraphDataLoader,CombinedModel,SequenceEncoder,Config
 
 config=Config()
        
-ip_encoder = SequenceEncoder(device='cuda:0' if torch.cuda.is_available() else 'cpu',model_path='/home/lzy/Gnn/DHGNN-LSTM/Codes/src/model/')
+ip_encoder = SequenceEncoder(model_path='/home/lzy/Gnn/DHGNN-LSTM/Codes/src/model/')
 
 encoders1 = {
     'ip': ip_encoder  # 将 IP 列的编码器传入
@@ -36,7 +36,7 @@ train_loader=dataLoader1.get_train_loader()
 valid_loader=dataLoader1.get_valid_loader()
 
 # 定义超参数
-epochs = 20
+epochs = config.epochs
 
 time_deltas = [0, 10, 10]  # 时间差分参数
 
