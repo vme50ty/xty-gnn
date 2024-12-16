@@ -1,3 +1,11 @@
+'''
+Author: lee12345 15116908166@163.com
+Date: 2024-11-20 09:45:23
+LastEditors: lee12345 15116908166@163.com
+LastEditTime: 2024-12-16 09:37:01
+FilePath: /Gnn/DHGNN-LSTM/Codes/src/dataLoader.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 from src import LoadHeteroGraph
 import os
 from torch_geometric.loader import DataLoader
@@ -25,6 +33,7 @@ class GraphDataLoader:
         
     def load_graph_from_subfolder(self, sub_folder):
         data_loader = LoadHeteroGraph()
+        user_ip_to_index = {}
         
         for file_name in os.listdir(sub_folder):
             file_path = os.path.join(sub_folder, file_name)
@@ -34,27 +43,35 @@ class GraphDataLoader:
             elif "servers" in file_name:
                 data_loader.load_node_csv(file_path, 'id', 'server', self.encoders1)
             elif "users" in file_name:
-                data_loader.load_node_csv(file_path, 'id', 'user', self.encoders2)
+                user_mapping = data_loader.load_node_csv(file_path, 'id', 'user', self.encoders2)
+                for user_ip, index in user_mapping.items():
+                    user_ip_to_index[user_ip] = index
                 data_loader.load_edge_csv(file_path,'id','belong','user','proxy','user2proxy')
                 
         # 添加完全连接边
         data_loader.add_fully_connected_edges(node_type='user')
 
         # 返回构建的 HeteroData 对象
-        return data_loader.get_data()
+        return data_loader.get_data(), user_ip_to_index
     
     def load_graphs_from_folder(self, folder_path):
         graphs = []
+        ip_mappings = []
         for sub_folder in os.listdir(folder_path):
             sub_path = os.path.join(folder_path, sub_folder)
             if os.path.isdir(sub_path):
-                graph = self.load_graph_from_subfolder(sub_path)
+                graph, ip_mapping = self.load_graph_from_subfolder(sub_path)
                 graphs.append(graph)
-        return graphs 
+                ip_mappings.append(ip_mapping)
+        return graphs , ip_mappings
     
     def process_data(self):
-        folders = [os.path.join(self.folder_father, folder) for folder in os.listdir(self.folder_father) if os.path.isdir(os.path.join(self.folder_father, folder))]
-        self.train_folders, self.test_folders = train_test_split(folders, test_size=self.test_ratio, random_state=42)
+        folders = [os.path.join(self.folder_father, folder) 
+                   for folder in os.listdir(self.folder_father) 
+                   if os.path.isdir(os.path.join(self.folder_father, folder))]
+        self.train_folders, self.test_folders = train_test_split(
+            folders, test_size=self.test_ratio, random_state=42
+        )
         
         self.train_loader = self.create_loader(self.train_folders)
         self.test_loader = self.create_loader(self.test_folders)
@@ -62,8 +79,13 @@ class GraphDataLoader:
     def create_loader(self, folder_list):
         all_data = []
         for folder in folder_list:
-            graphs = self.load_graphs_from_folder(folder)
-            all_data.append((graphs, self.get_folder_label(folder)))  # 每个 folder 的图集合与标签
+            graphs, ip_mappings = self.load_graphs_from_folder(folder)  # 获取 graphs 和 ip_mappings
+            label = self.get_folder_label(folder)  # 获取当前 folder 的标签
+            
+            # 将 graphs 和 ip_mappings 一起存储
+            all_data.append((graphs, ip_mappings, label))
+        
+        # DataLoader 中返回完整的数据
         return DataLoader(all_data, batch_size=self.batch_size, shuffle=True)
     
     def get_train_loader(self):

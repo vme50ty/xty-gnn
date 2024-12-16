@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-20 09:26:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-22 09:49:53
+LastEditTime: 2024-11-22 09:57:31
 FilePath: /Gnn/DHGNN-LSTM/Codes/train.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AEf
 '''
@@ -16,7 +16,7 @@ from src import CombinedModel
 
 
 class TrainPipeline:
-    def __init__(self, data_folder, model_class, hidden_size, hidden_channels, config:Config,
+    def __init__(self, model_class, hidden_size, hidden_channels, config:Config,
                  batch_size=1, lr=0.001, epochs=50, time_intervals=None):
         """
         训练流水线类，用于管理模型训练的所有流程。
@@ -142,7 +142,7 @@ class TrainPipeline:
         
 if __name__ == "__main__":
     # 参数配置
-    DATA_FOLDER = "/path/to/data"
+    config=Config()
     HIDDEN_SIZE = 128
     HIDDEN_CHANNELS = 64
     BATCH_SIZE = 1
@@ -151,10 +151,10 @@ if __name__ == "__main__":
 
     # 初始化并运行训练流水线
     pipeline = TrainPipeline(
-        data_folder=DATA_FOLDER,
         model_class=CombinedModel,
         hidden_size=HIDDEN_SIZE,
         hidden_channels=HIDDEN_CHANNELS,
+        config=config,
         batch_size=BATCH_SIZE,
         lr=LR,
         epochs=EPOCHS

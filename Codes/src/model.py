@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 09:50:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-19 10:46:49
+LastEditTime: 2024-12-12 15:46:01
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/model.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -123,7 +123,6 @@ class GnnModel(torch.nn.Module):
         self.user_ids = torch.arange(data["user"].num_nodes)
         self.server_ids = torch.arange(data["server"].num_nodes)
 
-        # print(data["proxy"])
         # Instantiate homogeneous GNN:
         self.gnn = GNN(hidden_channels,data.metadata())
         # Convert GNN model into a heterogeneous variant:

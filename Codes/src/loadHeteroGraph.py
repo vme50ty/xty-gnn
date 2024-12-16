@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 10:11:18
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-18 16:52:07
+LastEditTime: 2024-12-12 15:45:07
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/make_graph.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -22,17 +22,19 @@ class LoadHeteroGraph:
 
     def load_node_csv(self, path, index_col, node_type, encoders=None, **kwargs):
         """
-        Load node data from a CSV file and add it to the graph.
+        从CSV文件加载节点数据并添加到图中。
 
-        Parameters:
-        - path: Path to the node CSV file
-        - index_col: Column name containing node IDs
-        - node_type: Type of node (e.g., 'user', 'proxy', 'server')
-        - encoders: Dictionary mapping column names to encoder functions
+        参数：
+        - path: 节点CSV文件的路径
+        - index_col: 包含节点ID的列名
+        - node_type: 节点的类型（例如 'user', 'proxy', 'server'）
+        - encoders: 一个字典，将列名映射到对应的编码函数
+        - **kwargs: 其他传递给`pd.read_csv`的参数
         """
-        # Load node data
+        # 加载节点数据（从CSV文件读取数据，index_col用于指定节点ID列）
         df = pd.read_csv(path, index_col=index_col, **kwargs)
-        # Create a mapping from node IDs to continuous indices
+        # 创建一个从节点ID到连续索引的映射
+        # self.node_mappings[node_type] 保存的是该类型节点的ID到索引的映射
         self.node_mappings[node_type] = {index: i for i, index in enumerate(df.index.unique())}
 
         # Handle feature encoding or direct assignment
@@ -49,7 +51,9 @@ class LoadHeteroGraph:
             # Use raw data as features when no encoder is provided
             x = torch.tensor(df.values, dtype=torch.float)
 
-        self.data[node_type].x = x  # Add features to the HeteroData object
+        self.data[node_type].x = x  # 将特征添加到HeteroData对象中（假设self.data是一个HeteroData对象）
+        # print(f'nodetype='+node_type)
+        # print(self.node_mappings[node_type])
         return self.node_mappings[node_type]
 
     def load_edge_csv(self, path, src_index_col, dst_index_col, src_type, dst_type, relation, encoders=None, **kwargs):
@@ -119,7 +123,6 @@ class SequenceEncoder:
     def __call__(self, df):
         x = self.model.encode(df.values, show_progress_bar=True,
                               convert_to_tensor=True, device=self.device)
-        print(x.shape)
         return x.cpu()
     
     
