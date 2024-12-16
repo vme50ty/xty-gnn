@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 09:50:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-12 15:46:01
+LastEditTime: 2024-12-16 09:58:26
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/model.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -103,38 +103,39 @@ class GNN(torch.nn.Module):
         return x_dict
 
 class GnnModel(torch.nn.Module):
-    def __init__(self, hidden_channels,data:HeteroData):
+    def __init__(self, hidden_channels):
         super().__init__()
-        # 获取每种节点的特征维度
-        proxy_feat_dim = data["proxy"].x.shape[1]
-        user_feat_dim = data["user"].x.shape[1]
-        server_feat_dim = data["server"].x.shape[1]
-        # Since the dataset does not come with rich features, we also learn two
-        # embedding matrices for users and movies:
-        self.proxy_lin = torch.nn.Linear(proxy_feat_dim, hidden_channels)
-        self.user_lin = torch.nn.Linear(user_feat_dim, hidden_channels)
-        self.server_lin=torch.nn.Linear(server_feat_dim, hidden_channels)
+        self.hidden_channels = hidden_channels
+        # 使用 ModuleDict 动态管理每种节点类型的线性层和嵌入层
+        self.lin_layers = torch.nn.ModuleDict()
+        self.emb_layers = torch.nn.ModuleDict()
+        self.gnn = None  # 将 GNN 延迟初始化
         
-        self.prxoy_emb = torch.nn.Embedding(data["proxy"].num_nodes, hidden_channels)
-        self.user_emb = torch.nn.Embedding(data["user"].num_nodes, hidden_channels)
-        self.server_emb = torch.nn.Embedding(data["server"].num_nodes, hidden_channels)
+    def _initialize_layer(self, data: HeteroData, node_type: str):
+        """
+        动态初始化某个节点类型的线性层和嵌入层
+        """
+        feat_dim = data[node_type].x.shape[1]
+        if node_type not in self.lin_layers:
+            self.lin_layers[node_type] = torch.nn.Linear(feat_dim, self.hidden_channels)
+        if node_type not in self.emb_layers:
+            self.emb_layers[node_type] = torch.nn.Embedding(data[node_type].num_nodes, self.hidden_channels)
+    
+    def forward(self, data: HeteroData) -> dict:
+        # 动态初始化线性层和嵌入层
+        for node_type in data.node_types:
+            self._initialize_layer(data, node_type)
         
-        self.proxy_ids = torch.arange(data["proxy"].num_nodes)
-        self.user_ids = torch.arange(data["user"].num_nodes)
-        self.server_ids = torch.arange(data["server"].num_nodes)
-
-        # Instantiate homogeneous GNN:
-        self.gnn = GNN(hidden_channels,data.metadata())
-        # Convert GNN model into a heterogeneous variant:
-        # self.gnn = to_hetero(self.gnn, metadata=data.metadata())     
+        # 延迟初始化 GNN 模型
+        if self.gnn is None:
+            self.gnn = GNN(self.hidden_channels, data.metadata())
         
-    def forward(self, data: HeteroData) -> Tensor:
-        x_dict = {
-          "proxy": self.proxy_lin(data["proxy"].x) + self.prxoy_emb(self.proxy_ids),
-          "user": self.user_lin (data["user"].x) + self.user_emb(self.user_ids),
-          "server": self.server_lin(data["server"].x) + self.server_emb(self.server_ids)
-        } 
+        # 准备输入特征
+        x_dict = {}
+        for node_type in data.node_types:
+            ids = torch.arange(data[node_type].num_nodes, device=data[node_type].x.device)
+            x_dict[node_type] = self.lin_layers[node_type](data[node_type].x) + self.emb_layers[node_type](ids)
         
-        # print(f'first{data.edge_index_dict}')
+        # 传入 GNN 计算
         x_dict = self.gnn(x_dict, data.edge_index_dict)
         return x_dict

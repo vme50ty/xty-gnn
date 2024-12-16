@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 16:53:02
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-11-20 15:37:19
+LastEditTime: 2024-12-16 10:04:37
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/time-LSTM.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -36,7 +36,8 @@ class TimeLSTMCell(nn.Module):
         # 遗忘门
         f_t = torch.sigmoid(self.Wxf(x) + self.Whf(h_prev)) 
         
-        delta_t = torch.tensor(delta_t).float().view(-1, 1).to(x.device)
+        delta_t = delta_t.clone().detach().float().view(-1, 1).to(x.device)
+        
         delta_t_transformed = self.Wtt(delta_t)
         T_t = torch.sigmoid(self.Wxt(x) + torch.sigmoid(delta_t_transformed))
 

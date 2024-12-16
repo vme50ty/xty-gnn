@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-29 10:52:29
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-12 16:13:47
+LastEditTime: 2024-12-16 09:55:30
 FilePath: /Gnn/DHGNN-LSTM/Codes/main.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -42,7 +42,7 @@ SModel=CombinedModel(256,512,data,ipmapping)
 # 前向传播获取嵌入
 
 with torch.no_grad():  # 关闭梯度计算以加速推理
-    embeddings= SModel(time_deltas)
+    embeddings,ips= SModel(time_deltas)
     
 print(f'embeddings:{embeddings}')
 # print(dataLoad.data)
