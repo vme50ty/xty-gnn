@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-19 09:41:03
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 10:02:53
+LastEditTime: 2024-12-16 15:08:03
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/CombinedModel.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -17,7 +17,7 @@ from typing import List,Dict
 from collections import defaultdict
 
 class CombinedModel(torch.nn.Module):
-    def __init__(self,  hidden_size, hidden_channels, batched_graphs: List[HeteroData],ip_mapping: List[Dict[str, int]]):
+    def __init__(self,  hidden_size, hidden_channels):
         super(CombinedModel, self).__init__()
         
         self.config = Config()
@@ -32,47 +32,48 @@ class CombinedModel(torch.nn.Module):
         
         self.hidden_channels=hidden_channels
         
-        self.batched_graphs=batched_graphs
-        
-        self.ip_mapping = ip_mapping  # 每个图的 IP 到局部索引的映射列表
-        
+        self.device=self.config.device
+    
         self.gnn_model = GnnModel(self.hidden_channels)
         
-    def forward(self,  time_intervals: List[float]):
+        self.to(self.device)
+        
+    def forward(self,  time_intervals: List[float], batched_graphs: List[HeteroData],ip_mapping: List[Dict[str, int]]):
         """
         :param batched_graphs: 图列表，每个图是一个 HeteroData 对象
         :param time_intervals: 图产生的时间间隔列表，长度应比 batched_graphs 少 1
         :return: 用户类别概率分布
         """
         
-        if len(time_intervals) != len(self.batched_graphs) :
-            raise ValueError("time_intervals 的长度%d与 batched_graphs%d不同。",len(time_intervals),len(self.batched_graphs))
+        if len(time_intervals) != len(batched_graphs) :
+            raise ValueError("time_intervals 的长度%d与 batched_graphs%d不同。",len(time_intervals),len(batched_graphs))
 
         # Step 1: 获取所有图的用户嵌入
         user_embeddings_all = []  # 存储所有图的用户嵌入
         
-        for data in self.batched_graphs:
+        for data in batched_graphs:
+            data = data.to(self.device)  # 将每个图迁移到设备上
             x_dict = self.gnn_model(data) 
             
             user_embeddings_all.append(x_dict["user"])  # 收集当前图的用户嵌入
 
         # print(user_embeddings_all)
         
-        aligned_embeddings, global_ip_list = self.align_embeddings(user_embeddings_all, self.ip_mapping)
+        aligned_embeddings, global_ip_list = self.align_embeddings(user_embeddings_all, ip_mapping)
 
         # print(aligned_embeddings)
 
         # Step 2: 生成时间间隔张量
-        time_deltas = torch.tensor(time_intervals).unsqueeze(-1)
+        time_deltas = torch.tensor(time_intervals, device=self.device).unsqueeze(-1)
 
         # Step 3: 时间 LSTM 聚合
-        time_agg_embeddings, _ = self.time_lstm(aligned_embeddings, time_deltas)
+        time_agg_embeddings, _ = self.time_lstm(aligned_embeddings.to(self.device), time_deltas)
 
         # Step 4: 分类器
         user_logits = self.classifier(time_agg_embeddings)  # [num_users, num_classes]
-        user_probs = torch.softmax(user_logits, dim=-1)  # 转为概率分布
+        # user_probs = torch.softmax(user_logits, dim=-1)  # 转为概率分布
         
-        return user_probs, global_ip_list
+        return user_logits, global_ip_list
     
     def align_embeddings(self, user_embeddings_list, ip_mappings):
         """

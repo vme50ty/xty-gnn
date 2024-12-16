@@ -2,41 +2,47 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 16:53:02
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 10:04:37
+LastEditTime: 2024-12-16 16:06:26
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/time-LSTM.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
 import torch
 import torch.nn as nn
+from src import Config
 
 class TimeLSTMCell(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(TimeLSTMCell, self).__init__()
         self.hidden_size = hidden_size
-
+        self.config=Config()
+        self.device=self.config.device
+        
         # Define LSTM parameters
-        self.Wxi = nn.Linear(input_size, hidden_size)
-        self.Whi = nn.Linear(hidden_size, hidden_size)
-        self.Wxf = nn.Linear(input_size, hidden_size)
-        self.Whf = nn.Linear(hidden_size, hidden_size)
-        self.Wxt = nn.Linear(input_size, hidden_size)
-        self.Wtt = nn.Linear(1, hidden_size)
-        self.Wxc = nn.Linear(input_size, hidden_size)
-        self.Whc = nn.Linear(hidden_size, hidden_size)
-        self.Wxo = nn.Linear(input_size, hidden_size)
-        self.Wto = nn.Linear(1, hidden_size)
-        self.Who = nn.Linear(hidden_size, hidden_size)
-        self.Wco = nn.Linear(hidden_size, hidden_size)
+        self.Wxi = nn.Linear(input_size, hidden_size).to(self.device)
+        self.Whi = nn.Linear(hidden_size, hidden_size).to(self.device)
+        self.Wxf = nn.Linear(input_size, hidden_size).to(self.device)
+        self.Whf = nn.Linear(hidden_size, hidden_size).to(self.device)
+        self.Wxt = nn.Linear(input_size, hidden_size).to(self.device)
+        self.Wtt = nn.Linear(1, hidden_size).to(self.device)
+        self.Wxc = nn.Linear(input_size, hidden_size).to(self.device)
+        self.Whc = nn.Linear(hidden_size, hidden_size).to(self.device)
+        self.Wxo = nn.Linear(input_size, hidden_size).to(self.device)
+        self.Wto = nn.Linear(1, hidden_size).to(self.device)
+        self.Who = nn.Linear(hidden_size, hidden_size).to(self.device)
+        self.Wco = nn.Linear(hidden_size, hidden_size).to(self.device)
+
 
     # h_prev:上一个时间步的隐藏状态
     def forward(self, x, delta_t, h_prev, c_prev):
         # 输入门
+        h_prev=h_prev.to(self.device)
+        c_prev=c_prev.to(self.device)
         i_t = torch.sigmoid(self.Wxi(x) + self.Whi(h_prev))
         
         # 遗忘门
-        f_t = torch.sigmoid(self.Wxf(x) + self.Whf(h_prev)) 
+        f_t = torch.sigmoid(self.Wxf(x) + self.Whf(h_prev))
         
-        delta_t = delta_t.clone().detach().float().view(-1, 1).to(x.device)
+        delta_t = delta_t.clone().detach().float().view(-1, 1).to(self.device)
         
         delta_t_transformed = self.Wtt(delta_t)
         T_t = torch.sigmoid(self.Wxt(x) + torch.sigmoid(delta_t_transformed))

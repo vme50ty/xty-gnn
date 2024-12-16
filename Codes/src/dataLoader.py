@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-20 09:45:23
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 09:37:01
+LastEditTime: 2024-12-16 11:23:36
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/dataLoader.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -10,9 +10,10 @@ from src import LoadHeteroGraph
 import os
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
+import pandas as pd
 
 class GraphDataLoader:
-    def __init__(self,folder_father,encoders1=None, encoders2=None, test_ratio=0.2, batch_size=1):
+    def __init__(self,folder_father,encoders1=None, encoders2=None, test_ratio=0.25, batch_size=1):
         """
         图数据加载器类，自动加载和处理文件夹内的图数据。
         Parameters:
@@ -72,7 +73,6 @@ class GraphDataLoader:
         self.train_folders, self.test_folders = train_test_split(
             folders, test_size=self.test_ratio, random_state=42
         )
-        
         self.train_loader = self.create_loader(self.train_folders)
         self.test_loader = self.create_loader(self.test_folders)
         
@@ -80,10 +80,10 @@ class GraphDataLoader:
         all_data = []
         for folder in folder_list:
             graphs, ip_mappings = self.load_graphs_from_folder(folder)  # 获取 graphs 和 ip_mappings
-            label = self.get_folder_label(folder)  # 获取当前 folder 的标签
+            labels = self.get_folder_label(folder)  # 获取当前 folder 的标签,在每个folder文件夹下，存在label.csv
             
             # 将 graphs 和 ip_mappings 一起存储
-            all_data.append((graphs, ip_mappings, label))
+            all_data.append((graphs, ip_mappings, labels))
         
         # DataLoader 中返回完整的数据
         return DataLoader(all_data, batch_size=self.batch_size, shuffle=True)
@@ -96,13 +96,39 @@ class GraphDataLoader:
             raise ValueError("Train loader is not initialized. Call `process_data()` first.")
         return self.train_loader
     
-    def get_test_loader(self):
+    def get_valid_loader(self):
         """
         返回测试集 DataLoader。
         """
         if self.test_loader is None:
             raise ValueError("Test loader is not initialized. Call `process_data()` first.")
         return self.test_loader
-    
+
     def get_folder_label(self, folder_path):
-        pass
+
+        label_file = os.path.join(folder_path, "label.csv")
+        
+        if not os.path.exists(label_file):
+            raise FileNotFoundError(f"Label file not found in folder: {folder_path}")
+        
+        # 读取 CSV 文件
+        df = pd.read_csv(label_file)
+        
+        # 确保文件格式正确
+        if not {"id", "noraml", "abnormal", "unknown"}.issubset(df.columns):
+            raise ValueError(f"Label file {label_file} has incorrect format. Expected columns: 'id', 'normal', 'abnormal', 'unknown'")
+        
+        # 将标签转化为数值
+        labels = {}
+        for _, row in df.iterrows():
+            user_ip = row["id"]
+            if row["noraml"] == 1:
+                labels[user_ip] = 0  # normal
+            elif row["abnormal"] == 1:
+                labels[user_ip] = 1  # abnormal
+            elif row["unknown"] == 1:
+                labels[user_ip] = 2  # unknown
+            else:
+                raise ValueError(f"Invalid label in row: {row}")
+        
+        return labels

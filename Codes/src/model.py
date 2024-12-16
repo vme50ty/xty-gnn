@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 09:50:58
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 09:58:26
+LastEditTime: 2024-12-16 16:04:30
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/model.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -12,6 +12,7 @@ from torch import nn, Tensor
 import torch
 from torch_geometric.data import HeteroData
 from torch_scatter import scatter_softmax, scatter_add
+from src import Config
 
 class WeightParameter(nn.Module):
     def __init__(self, hidden_channels):
@@ -23,15 +24,17 @@ class HeteroAttentionLayer(MessagePassing):
     def __init__(self, hidden_channels, metadata):
         super(HeteroAttentionLayer, self).__init__(aggr='add')  # 聚合方法为“加和”
         self.hidden_channels = hidden_channels
-
+        self.config=Config()
+        self.device=self.config.device
+        
         # 为每种节点类型创建独立的查询、键和值向量生成器
         self.q_dict = nn.ModuleDict()
         self.k_dict = nn.ModuleDict()
         self.v_dict = nn.ModuleDict()
         for node_type in metadata[0]:  # metadata[0]包含节点类型
-            self.q_dict[node_type] = nn.Linear(hidden_channels, hidden_channels)
-            self.k_dict[node_type] = nn.Linear(hidden_channels, hidden_channels)
-            self.v_dict[node_type] = nn.Linear(hidden_channels, hidden_channels)
+            self.q_dict[node_type] = nn.Linear(hidden_channels, hidden_channels).to(self.device)
+            self.k_dict[node_type] = nn.Linear(hidden_channels, hidden_channels).to(self.device)
+            self.v_dict[node_type] = nn.Linear(hidden_channels, hidden_channels).to(self.device)
 
         # 为每种边类型创建独立的权重矩阵
         self.w_dict = nn.ModuleDict()
@@ -47,8 +50,10 @@ class HeteroAttentionLayer(MessagePassing):
         out_dict = {}
 
         for node_type, node_feats in x_dict.items():
+            node_feats = node_feats.to(self.device)
+            
             if node_type not in out_dict:
-                out_dict[node_type] = torch.zeros_like(node_feats)
+                out_dict[node_type] = torch.zeros_like(node_feats, device=self.device)
 
             q_self = self.q_dict[node_type](x_dict[node_type])  # 自身查询向量
             k_self = self.k_dict[node_type](x_dict[node_type])  # 自身键向量
@@ -61,11 +66,14 @@ class HeteroAttentionLayer(MessagePassing):
                 src_type, _, dst_type = edge_type
                 if dst_type != node_type:
                     continue  # Skip if the edge's destination does not match the current node type
-
+                
+                edge_index = edge_index.to(self.device)
                 # Apply linear transformations
-                q = self.q_dict[src_type](x_dict[src_type])  # (num_src_nodes, hidden_dim)
-                k = self.k_dict[dst_type](x_dict[dst_type])  # (num_dst_nodes, hidden_dim)
-                v = self.v_dict[src_type](x_dict[src_type])  # (num_src_nodes, hidden_dim)
+                q = self.q_dict[src_type](x_dict[src_type]).to(self.device)  # (num_src_nodes, hidden_dim)
+                
+                k = self.k_dict[dst_type](x_dict[dst_type]).to(self.device) # (num_dst_nodes, hidden_dim)
+                
+                v = self.v_dict[src_type](x_dict[src_type]).to(self.device)  # (num_src_nodes, hidden_dim)
 
                 # Extract source and destination nodes for edges
                 src_nodes = edge_index[0]  # Source nodes for edges
@@ -74,8 +82,10 @@ class HeteroAttentionLayer(MessagePassing):
                 # Compute raw attention scores (alpha_uv)
                 W = self.w_dict[f"{edge_type}"].weight  # Weight matrix for this edge type
                 raw_alpha = (q[src_nodes] @ W @ k[dst_nodes].T).sum(dim=-1) / (self.hidden_channels ** 0.5)  # (num_edges,)
-                
                 # Normalize attention scores for each destination node independently
+                # print(f'raw_alpha={raw_alpha}')
+                # print(f'dst_nodes={dst_nodes}')
+
                 normalized_alpha = scatter_softmax(raw_alpha, dst_nodes, dim=0)  # (num_edges,)
                 # print(f'normalized_alpha={normalized_alpha}')
                 # Compute weighted messages
@@ -85,6 +95,7 @@ class HeteroAttentionLayer(MessagePassing):
                 out_dict[dst_type] = scatter_add(
                     weighted_messages, dst_nodes, dim=0, out=out_dict[dst_type]
                 )
+                
                 out_dict[node_type] += self_message  # 加入自注意力消息
 
         return out_dict
@@ -129,6 +140,8 @@ class GnnModel(torch.nn.Module):
         # 延迟初始化 GNN 模型
         if self.gnn is None:
             self.gnn = GNN(self.hidden_channels, data.metadata())
+        device = data[node_type].x.device  # 假定所有节点特征都在同一个设备上
+        self.to(device)  # 将模型迁移到数据所在设备
         
         # 准备输入特征
         x_dict = {}
