@@ -12,3 +12,4 @@ from src.model import GnnModel
 from src.timeLSTM import TimeLSTM,TimeLSTMCell
 from src.CombinedModel import CombinedModel
 from src.dataLoader import GraphDataLoader
+from src.redis import RedisConn

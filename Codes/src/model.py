@@ -85,7 +85,7 @@ class HeteroAttentionLayer(MessagePassing):
                 # Normalize attention scores for each destination node independently
                 # print(f'raw_alpha={raw_alpha}')
                 # print(f'dst_nodes={dst_nodes}')
-
+                
                 normalized_alpha = scatter_softmax(raw_alpha, dst_nodes, dim=0)  # (num_edges,)
                 # print(f'normalized_alpha={normalized_alpha}')
                 # Compute weighted messages
