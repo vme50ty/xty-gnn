@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-12-16 10:12:28
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 19:50:21
+LastEditTime: 2024-12-25 14:47:31
 FilePath: /Gnn/DHGNN-LSTM/Codes/loader_test.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -19,18 +19,18 @@ config=Config()
        
 ip_encoder = SequenceEncoder(model_path='/home/lzy/Gnn/DHGNN-LSTM/Codes/src/model/')
 
-encoders1 = {
-    'ip': ip_encoder  # 将 IP 列的编码器传入
-}
-encoders2 = {
-    'name': ip_encoder  # 将 IP 列的编码器传入
-}
+# encoders1 = {
+#     'userIP': ip_encoder  # 将 IP 列的编码器传入
+# }
+# encoders2 = {
+#     'proxyname': ip_encoder  # 将 IP 列的编码器传入
+# }
 
 path=config.dataPath
 
 # 初始化 GraphDataLoader
 print("Initializing data loader...")
-dataLoader1=GraphDataLoader(path,encoders1,encoders2)
+dataLoader1=GraphDataLoader(path,None,None)
 dataLoader1.process_data()
 train_loader=dataLoader1.get_train_loader()
 valid_loader=dataLoader1.get_valid_loader()
@@ -38,7 +38,7 @@ valid_loader=dataLoader1.get_valid_loader()
 # 定义超参数
 epochs = config.epochs
 
-time_deltas = [0, 10, 10]  # 时间差分参数
+time_deltas = [5,10,10,10,10,10,10,10,10]   #时间间隔
 
 # 初始化模型
 print("Initializing model...")
@@ -46,9 +46,9 @@ device=config.device
 model = CombinedModel(config.input_dim, config.hidden_dim)
 model.to(device)
 
-
 # 定义损失函数和优化器
-criterion = nn.CrossEntropyLoss()
+class_weights = torch.tensor([1.0, 1.0, 1.0]).to(device)
+criterion = nn.CrossEntropyLoss(weight=class_weights)
 optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
 optimizer.zero_grad()
@@ -72,7 +72,6 @@ def train_model(model, train_loader, criterion, optimizer, device):
         
         # 前向传播
         outputs,global_ips = model(time_deltas,graphs, ips)
-        
         # 获取标签
         labels_list = []
         for ip in global_ips:
@@ -84,6 +83,7 @@ def train_model(model, train_loader, criterion, optimizer, device):
 
         # 反向传播
         loss.backward()
+                    
         optimizer.step()
 
         total_loss += loss.item()
@@ -119,6 +119,8 @@ def validate_model(model, valid_loader, criterion, device):
 
             # 计算准确率
             _, predicted = torch.max(outputs, 1)
+            # print(f'predicted={predicted}')
+            # print(f'true_label={labels_tensor}')
             correct += (predicted == labels_tensor).sum().item()
             total += labels_tensor.size(0)
 
@@ -132,10 +134,13 @@ print("Starting training...")
 for epoch in range(epochs):
     train_loss = train_model(model, train_loader, criterion, optimizer, device)
     valid_loss, valid_accuracy = validate_model(model, valid_loader, criterion, device)
+    _, train_accuracy = validate_model(model, train_loader, criterion, device)
 
     print(f"Epoch {epoch + 1}/{epochs}, "
           f"Train Loss: {train_loss:.4f}, "
           f"Validation Loss: {valid_loss:.4f}, "
-          f"Validation Accuracy: {valid_accuracy:.4f}")
+          f"train Accuracy: {train_accuracy:.4f},"
+          f"Validation Accuracy: {valid_accuracy:.4f}"
+        )
 
 print("Training completed!")

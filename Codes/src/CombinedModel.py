@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-19 09:41:03
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 15:08:03
+LastEditTime: 2024-12-24 15:58:13
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/CombinedModel.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -50,25 +50,18 @@ class CombinedModel(torch.nn.Module):
 
         # Step 1: 获取所有图的用户嵌入
         user_embeddings_all = []  # 存储所有图的用户嵌入
-        
         for data in batched_graphs:
             data = data.to(self.device)  # 将每个图迁移到设备上
             x_dict = self.gnn_model(data) 
-            
             user_embeddings_all.append(x_dict["user"])  # 收集当前图的用户嵌入
 
-        # print(user_embeddings_all)
-        
         aligned_embeddings, global_ip_list = self.align_embeddings(user_embeddings_all, ip_mapping)
-
-        # print(aligned_embeddings)
 
         # Step 2: 生成时间间隔张量
         time_deltas = torch.tensor(time_intervals, device=self.device).unsqueeze(-1)
 
         # Step 3: 时间 LSTM 聚合
         time_agg_embeddings, _ = self.time_lstm(aligned_embeddings.to(self.device), time_deltas)
-
         # Step 4: 分类器
         user_logits = self.classifier(time_agg_embeddings)  # [num_users, num_classes]
         # user_probs = torch.softmax(user_logits, dim=-1)  # 转为概率分布

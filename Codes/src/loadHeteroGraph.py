@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 10:11:18
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-17 14:08:26
+LastEditTime: 2024-12-25 14:06:26
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/make_graph.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -21,7 +21,7 @@ class LoadHeteroGraph:
         self.data = HeteroData()  # Initialize the heterogeneous graph data
         self.node_mappings = {}  # Store mappings for each type of node
 
-    def load_node_csv(self, path, index_col, node_type, encoders=None, **kwargs):
+    def load_node_csv(self, path, index_col, node_type, encoders=None, drop_cols=None,**kwargs):
         """
         从CSV文件加载节点数据并添加到图中。
 
@@ -33,11 +33,15 @@ class LoadHeteroGraph:
         - **kwargs: 其他传递给`pd.read_csv`的参数
         """
         # 加载节点数据（从CSV文件读取数据，index_col用于指定节点ID列）
+        
         df = pd.read_csv(path, index_col=index_col, **kwargs)
+        # 如果指定了需要忽略的列，则从DataFrame中移除这些列
+        if drop_cols is not None:
+            df = df.drop(columns=drop_cols, errors='ignore')  # 忽略可能不存在的列
         # 创建一个从节点ID到连续索引的映射
         # self.node_mappings[node_type] 保存的是该类型节点的ID到索引的映射
         self.node_mappings[node_type] = {index: i for i, index in enumerate(df.index.unique())}
-
+        
         # Handle feature encoding or direct assignment
         if encoders is not None:
             # Apply encoders and concatenate features

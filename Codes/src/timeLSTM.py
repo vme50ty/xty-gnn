@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 16:53:02
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 16:06:26
+LastEditTime: 2024-12-24 16:57:09
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/time-LSTM.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -89,9 +89,9 @@ class TimeLSTM(nn.Module):
             h, c = self.cell(x, delta_t, h, c)  # 支持批处理
             hidden_states.append(h)  # 添加当前时间步的隐藏状态
         
-        # 计算累积时间间隔
+        # # 计算累积时间间隔
+        time_deltas = time_deltas / time_deltas.max()  # 将时间间隔归一化到 [0, 1]
         cumulative_time_deltas = torch.cumsum(time_deltas, dim=0)  
-
         # 计算时间权重
         weights = torch.softmax(-cumulative_time_deltas.float(), dim=0)  # 时间权重与间隔反相关
         weights = weights.view(-1, 1)  # 转换为 [num_graphs, 1]，方便广播与hidden_states相乘

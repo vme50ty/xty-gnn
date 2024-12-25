@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-20 09:45:23
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-16 16:44:37
+LastEditTime: 2024-12-25 14:47:24
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/dataLoader.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -11,9 +11,10 @@ import os
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import torch
 
 class GraphDataLoader:
-    def __init__(self,folder_father,encoders1=None, encoders2=None, test_ratio=0.25, batch_size=1):
+    def __init__(self,folder_father,encoders1=None, encoders2=None, test_ratio=0.2, batch_size=1):
         """
         图数据加载器类，自动加载和处理文件夹内的图数据。
         Parameters:
@@ -32,28 +33,26 @@ class GraphDataLoader:
         self.train_loader=None
         self.test_loader=None
         
-    def load_graph_from_subfolder(self, sub_folder):
+    def load_graph_from_subfolder(self, sub_folder): 
         data_loader = LoadHeteroGraph()
         user_ip_to_index = {}
         
         for file_name in os.listdir(sub_folder):
             file_path = os.path.join(sub_folder, file_name)
             if "proxys" in file_name:
-                data_loader.load_node_csv(file_path, 'id', 'proxy', self.encoders1)
-                data_loader.load_edge_csv(file_path,'id','belong','proxy','server','proxy2server')
-            elif "servers" in file_name:
-                data_loader.load_node_csv(file_path, 'id', 'server', self.encoders1)
+                data_loader.load_node_csv(file_path, 'id', 'proxy', self.encoders2,'proxyname')
+                # data_loader.load_edge_csv(file_path,'id','belong','proxy','server','proxy2server')
             elif "users" in file_name:
-                user_mapping = data_loader.load_node_csv(file_path, 'id', 'user', self.encoders2)
+                user_mapping = data_loader.load_node_csv(file_path, 'userIP', 'user', self.encoders1)
                 for user_ip, index in user_mapping.items():
                     user_ip_to_index[user_ip] = index
-                data_loader.load_edge_csv(file_path,'id','belong','user','proxy','user2proxy')
+                data_loader.load_edge_csv(file_path,'userIP','belong','user','proxy','user2proxy')
                 
         # 添加完全连接边
-        data_loader.add_fully_connected_edges(node_type='user')
-
-        # 返回构建的 HeteroData 对象
-        return data_loader.get_data(), user_ip_to_index
+        # data_loader.add_fully_connected_edges(node_type='user')
+        
+        data = data_loader.get_data()
+        return data, user_ip_to_index
     
     def load_graphs_from_folder(self, folder_path):
         graphs = []
@@ -115,14 +114,14 @@ class GraphDataLoader:
         df = pd.read_csv(label_file)
         
         # 确保文件格式正确
-        if not {"id", "noraml", "abnormal", "unknown"}.issubset(df.columns):
+        if not {"id", "normal", "abnormal", "unknown"}.issubset(df.columns):
             raise ValueError(f"Label file {label_file} has incorrect format. Expected columns: 'id', 'normal', 'abnormal', 'unknown'")
         
         # 将标签转化为数值
         labels = {}
         for _, row in df.iterrows():
             user_ip = row["id"]
-            if row["noraml"] == 1:
+            if row["normal"] == 1:
                 labels[user_ip] = 0  # normal
             elif row["abnormal"] == 1:
                 labels[user_ip] = 1  # abnormal
