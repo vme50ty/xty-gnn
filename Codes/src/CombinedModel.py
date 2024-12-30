@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-19 09:41:03
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-24 15:58:13
+LastEditTime: 2024-12-25 17:25:08
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/CombinedModel.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -21,14 +21,15 @@ class CombinedModel(torch.nn.Module):
         super(CombinedModel, self).__init__()
         
         self.config = Config()
-        # 图神经网络模块
-        # self.gnn_model = GnnModel(hidden_channels, batched_graphs[0])
         
         # 时间 LSTM 模块
         self.time_lstm = TimeLSTM(hidden_channels, hidden_size)
         
-        # 分类器
-        self.classifier = nn.Linear(hidden_size, 3)  # 输出 3 类（正常用户/异常用户/未知用户）
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.ReLU(),
+            nn.Linear(hidden_size // 2, 3)
+        )
         
         self.hidden_channels=hidden_channels
         
@@ -51,7 +52,6 @@ class CombinedModel(torch.nn.Module):
         # Step 1: 获取所有图的用户嵌入
         user_embeddings_all = []  # 存储所有图的用户嵌入
         for data in batched_graphs:
-            data = data.to(self.device)  # 将每个图迁移到设备上
             x_dict = self.gnn_model(data) 
             user_embeddings_all.append(x_dict["user"])  # 收集当前图的用户嵌入
 
@@ -61,37 +61,26 @@ class CombinedModel(torch.nn.Module):
         time_deltas = torch.tensor(time_intervals, device=self.device).unsqueeze(-1)
 
         # Step 3: 时间 LSTM 聚合
-        time_agg_embeddings, _ = self.time_lstm(aligned_embeddings.to(self.device), time_deltas)
+        time_agg_embeddings, _ = self.time_lstm(aligned_embeddings, time_deltas)
+        
         # Step 4: 分类器
         user_logits = self.classifier(time_agg_embeddings)  # [num_users, num_classes]
-        # user_probs = torch.softmax(user_logits, dim=-1)  # 转为概率分布
         
         return user_logits, global_ip_list
     
     def align_embeddings(self, user_embeddings_list, ip_mappings):
-        """
-        将每个图的用户嵌入对齐到全局 IP 集合的顺序。
-        
-        :param user_embeddings_list: List[Tensor]，每个图的用户嵌入 [num_users, embedding_dim]
-        :param ip_mappings: List[Dict[str, int]]，每个图的 IP 到索引映射
-        :return: 对齐后的嵌入 Tensor，形状为 [num_graphs, num_global_users, embedding_dim]
-        """
-        # Step 1: 构建全局 IP 集合
-        all_ips = set()
-        for mapping in ip_mappings:
-            all_ips.update(mapping.keys())
-        global_ip_list = sorted(all_ips)  # 全局 IP 按顺序排列，确保一致性
+        all_ips = set(ip for mapping in ip_mappings for ip in mapping)
+        global_ip_list = sorted(all_ips)
+        global_ip_map = {ip: idx for idx, ip in enumerate(global_ip_list)}
 
-        # Step 2: 初始化对齐后的嵌入张量
         num_graphs = len(user_embeddings_list)
         embedding_dim = user_embeddings_list[0].size(1)
         global_user_count = len(global_ip_list)
-        aligned_embeddings = torch.zeros((num_graphs, global_user_count, embedding_dim))
+        aligned_embeddings = torch.zeros((num_graphs, global_user_count, embedding_dim), device=self.device)
 
-        # Step 3: 对齐每个图的嵌入
         for i, (embeddings, mapping) in enumerate(zip(user_embeddings_list, ip_mappings)):
             for ip, local_idx in mapping.items():
-                global_idx = global_ip_list.index(ip)  # 找到全局索引
-                aligned_embeddings[i, global_idx] = embeddings[local_idx]  # 对齐嵌入
+                global_idx = global_ip_map[ip]
+                aligned_embeddings[i, global_idx] = embeddings[local_idx]
 
         return aligned_embeddings, global_ip_list

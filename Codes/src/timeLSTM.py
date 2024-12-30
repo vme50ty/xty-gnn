@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 16:53:02
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-24 16:57:09
+LastEditTime: 2024-12-25 17:16:26
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/time-LSTM.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -18,18 +18,18 @@ class TimeLSTMCell(nn.Module):
         self.device=self.config.device
         
         # Define LSTM parameters
-        self.Wxi = nn.Linear(input_size, hidden_size).to(self.device)
-        self.Whi = nn.Linear(hidden_size, hidden_size).to(self.device)
-        self.Wxf = nn.Linear(input_size, hidden_size).to(self.device)
-        self.Whf = nn.Linear(hidden_size, hidden_size).to(self.device)
-        self.Wxt = nn.Linear(input_size, hidden_size).to(self.device)
-        self.Wtt = nn.Linear(1, hidden_size).to(self.device)
-        self.Wxc = nn.Linear(input_size, hidden_size).to(self.device)
-        self.Whc = nn.Linear(hidden_size, hidden_size).to(self.device)
-        self.Wxo = nn.Linear(input_size, hidden_size).to(self.device)
-        self.Wto = nn.Linear(1, hidden_size).to(self.device)
-        self.Who = nn.Linear(hidden_size, hidden_size).to(self.device)
-        self.Wco = nn.Linear(hidden_size, hidden_size).to(self.device)
+        self.Wxi = nn.Linear(input_size, hidden_size)
+        self.Whi = nn.Linear(hidden_size, hidden_size)
+        self.Wxf = nn.Linear(input_size, hidden_size)
+        self.Whf = nn.Linear(hidden_size, hidden_size)
+        self.Wxt = nn.Linear(input_size, hidden_size)
+        self.Wtt = nn.Linear(1, hidden_size)
+        self.Wxc = nn.Linear(input_size, hidden_size)
+        self.Whc = nn.Linear(hidden_size, hidden_size)
+        self.Wxo = nn.Linear(input_size, hidden_size)
+        self.Wto = nn.Linear(1, hidden_size)
+        self.Who = nn.Linear(hidden_size, hidden_size)
+        self.Wco = nn.Linear(hidden_size, hidden_size)
 
 
     # h_prev:上一个时间步的隐藏状态
@@ -42,7 +42,7 @@ class TimeLSTMCell(nn.Module):
         # 遗忘门
         f_t = torch.sigmoid(self.Wxf(x) + self.Whf(h_prev))
         
-        delta_t = delta_t.clone().detach().float().view(-1, 1).to(self.device)
+        delta_t = delta_t.clone().detach().float().view(-1, 1)
         
         delta_t_transformed = self.Wtt(delta_t)
         T_t = torch.sigmoid(self.Wxt(x) + torch.sigmoid(delta_t_transformed))

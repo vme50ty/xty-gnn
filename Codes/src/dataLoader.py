@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-20 09:45:23
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-25 14:47:24
+LastEditTime: 2024-12-30 15:41:57
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/dataLoader.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -40,10 +40,10 @@ class GraphDataLoader:
         for file_name in os.listdir(sub_folder):
             file_path = os.path.join(sub_folder, file_name)
             if "proxys" in file_name:
-                data_loader.load_node_csv(file_path, 'id', 'proxy', self.encoders2,'proxyname')
-                # data_loader.load_edge_csv(file_path,'id','belong','proxy','server','proxy2server')
+                proxy_mapping=data_loader.load_node_csv(file_path, 'id', 'proxy', None,['proxyname','belong'])
             elif "users" in file_name:
-                user_mapping = data_loader.load_node_csv(file_path, 'userIP', 'user', self.encoders1)
+                # print(file_path)
+                user_mapping = data_loader.load_node_csv(file_path, 'userIP', 'user', None,['id'])
                 for user_ip, index in user_mapping.items():
                     user_ip_to_index[user_ip] = index
                 data_loader.load_edge_csv(file_path,'userIP','belong','user','proxy','user2proxy')
@@ -52,6 +52,23 @@ class GraphDataLoader:
         # data_loader.add_fully_connected_edges(node_type='user')
         
         data = data_loader.get_data()
+        # # 打印 proxy 节点特征
+        # print("Proxy Node Features:")
+        # print(data['proxy'].x) 
+        # # 打印 user 节点特征
+        # print("User Node Features:")
+        # print(data['user'].x)  # 输出 [250, 6] 的矩阵，注意如果没有特征会是 None
+        # # 打印 user -> proxy 边
+        # print("User to Proxy Edges (edge_index):")
+        # print(data['user', 'user2proxy', 'proxy'].edge_index)
+        # # 打印 proxy -> user 边（反向边）
+        # print("Proxy to User Edges (edge_index):")
+        # print(data['proxy', 'rev_user2proxy', 'user'].edge_index)
+        # print("User ip to index:")
+        # print(user_ip_to_index)
+        # print("proxy to index:")
+        # print(proxy_mapping)
+        
         return data, user_ip_to_index
     
     def load_graphs_from_folder(self, folder_path):
@@ -61,6 +78,9 @@ class GraphDataLoader:
             sub_path = os.path.join(folder_path, sub_folder)
             if os.path.isdir(sub_path):
                 graph, ip_mapping = self.load_graph_from_subfolder(sub_path)
+                # print(sub_path)
+                # print(graph)
+                # print(ip_mapping)
                 graphs.append(graph)
                 ip_mappings.append(ip_mapping)
         return graphs , ip_mappings

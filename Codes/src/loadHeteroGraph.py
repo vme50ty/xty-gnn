@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 10:11:18
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-25 14:06:26
+LastEditTime: 2024-12-30 15:31:11
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/make_graph.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -36,8 +36,13 @@ class LoadHeteroGraph:
         
         df = pd.read_csv(path, index_col=index_col, **kwargs)
         # 如果指定了需要忽略的列，则从DataFrame中移除这些列
+        # 如果指定了需要忽略的列，则从DataFrame中移除这些列
         if drop_cols is not None:
-            df = df.drop(columns=drop_cols, errors='ignore')  # 忽略可能不存在的列
+            if isinstance(drop_cols, list):  # 如果是列表形式
+                df = df.drop(columns=drop_cols, errors='ignore')  # 忽略可能不存在的列
+            else:
+                raise ValueError("`drop_cols` should be a list of column names to drop.")
+            
         # 创建一个从节点ID到连续索引的映射
         # self.node_mappings[node_type] 保存的是该类型节点的ID到索引的映射
         self.node_mappings[node_type] = {index: i for i, index in enumerate(df.index.unique())}
@@ -55,7 +60,8 @@ class LoadHeteroGraph:
         else:
             # Use raw data as features when no encoder is provided
             x = torch.tensor(df.values, dtype=torch.float)
-
+        # print(f'path={path}')
+        # print(x)
         self.data[node_type].x = x  # 将特征添加到HeteroData对象中（假设self.data是一个HeteroData对象）
         # print(f'nodetype='+node_type)
         # print(self.node_mappings[node_type])

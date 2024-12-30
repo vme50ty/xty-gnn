@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-12-23 15:08:21
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-25 16:03:55
+LastEditTime: 2024-12-26 17:18:42
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/makeData.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -46,8 +46,7 @@ class SlowAttacker(User):
         self.requestCount = random.randint(20, 50)
         self.avg_latency = random.uniform(0.5, 5)  # 高时延
         self.requestPerMinute = random.randint(1, 10)
-        self.credit = random.randint(1, 10)
-        self.connsCount = random.randint(10, 20)  # 资源占用提高
+        self.connsCount = random.randint(3, 8)  # 资源占用提高
 
 class StealthAttacker(User):
     def generate_behavior(self):
@@ -72,13 +71,23 @@ class Proxy:
         self.users.append(user)
         self.UserNum+=1
         
+    def reset_load(self):
+        """重置代理的负载数据"""
+        self.SEND_KILOBYTES = 0
+        self.RECEIVE_KILOBYTES = 0
+        self.CPU_LOAD = 0
+        self.DISK_LOAD = 0
+        self.MEM_LOAD = 0
+        self.DISK_LOAD_COUNT = 0
+        self.users=[]
+        
     def update_load(self):
         """根据用户行为更新代理负载"""
         self.SEND_KILOBYTES = sum(user.requestCount * 0.01 for user in self.users)
         self.RECEIVE_KILOBYTES =  sum(user.requestCount * 0.001 for user in self.users)
-        self.CPU_LOAD = min(100,self.CPU_LOAD+sum(user.requestPerMinute * 0.0001 for user in self.users))
-        self.DISK_LOAD = min(100,self.DISK_LOAD+random.uniform(0,0.01) * len(self.users)) #最大值应该为100
-        self.MEM_LOAD = min(100, sum(user.connsCount * 10 for user in self.users) + 70)
+        self.CPU_LOAD = min(100,random.uniform(10, 30)+sum(user.requestPerMinute * 0.0001 for user in self.users))
+        self.DISK_LOAD = min(100,random.uniform(10, 30)+random.uniform(0,0.01) * len(self.users)) #最大值应该为100
+        self.MEM_LOAD = min(100, sum(user.connsCount * 0.1 for user in self.users) + 10)
         self.DISK_LOAD_COUNT += len(self.users)
         
         # 检查是否存在特定类型的攻击者
@@ -88,14 +97,14 @@ class Proxy:
                 # 慢速攻击者的影响
                 self.SEND_KILOBYTES += 0.1 * user.requestCount
                 self.DISK_LOAD_COUNT += 100  # 每个慢速攻击者增加的磁盘访问次数
-                self.CPU_LOAD = min(100, self.CPU_LOAD + random.uniform(10, 50))
+                self.CPU_LOAD = min(100, self.CPU_LOAD + random.uniform(10, 30))
                 self.MEM_LOAD = min(100, self.MEM_LOAD + random.uniform(10, 30))
                 
             if isinstance(user, StealthAttacker):
-                self.CPU_LOAD = min(100, self.CPU_LOAD + random.uniform(10, 30))
-                self.MEM_LOAD = min(100, self.MEM_LOAD + random.uniform(15, 35))
-                self.RECEIVE_KILOBYTES += random.uniform(10, 40)
-                self.SEND_KILOBYTES += random.uniform(15, 35)
+                self.CPU_LOAD = min(100, self.CPU_LOAD + random.uniform(30, 50))
+                self.MEM_LOAD = min(100, self.MEM_LOAD + random.uniform(30,50))
+                self.RECEIVE_KILOBYTES += random.uniform(50, 80)
+                self.SEND_KILOBYTES += random.uniform(50, 80)
                 
     def show_status(self):
         """打印代理的当前状态"""
@@ -131,6 +140,10 @@ def generate_users(num_users, attack_distribution):
 
 
 def assign_proxies(users, proxies):
+    for proxy in proxies:
+        proxy.UserNum=0
+        proxy.reset_load()  # 重置代理的负载
+        
     for user in users:
         belong_proxy = random.choice(proxies)
         user.belong=belong_proxy.id
@@ -197,12 +210,12 @@ def save_labels_to_csv(users,path, filename="label.csv"):
 # 主程序
 if __name__ == "__main__":
     # 参数设置
-    num_users =100
-    num_proxies = 3
-    attack_distribution = [0.95, 0.05, 0.00, 0.00]  # 普通用户, 直接攻击者, 慢速攻击者, 高隐蔽攻击者的比例
+    num_users =300
+    num_proxies = 15
+    attack_distribution = [0.95, 0.00, 0.03, 0.00]  # 普通用户, 直接攻击者, 慢速攻击者, 高隐蔽攻击者的比例
     
      # 初始化代理路径
-    base_path = '../../datas_Direct/'
+    base_path = '../../datas_Slow/'
     folder_prefix = 'data_folder'
     existing_folders = [folder for folder in os.listdir(base_path)]
     existing_count = len(existing_folders)
