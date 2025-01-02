@@ -2,11 +2,11 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-11-20 09:45:23
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-30 15:41:57
+LastEditTime: 2025-01-02 14:42:48
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/dataLoader.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
-from src import LoadHeteroGraph
+from src import LoadHeteroGraph,Config
 import os
 from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
@@ -14,7 +14,7 @@ import pandas as pd
 import torch
 
 class GraphDataLoader:
-    def __init__(self,folder_father,encoders1=None, encoders2=None, test_ratio=0.2, batch_size=1):
+    def __init__(self,folder_father,encoders1=None, encoders2=None,  batch_size=1):
         """
         图数据加载器类，自动加载和处理文件夹内的图数据。
         Parameters:
@@ -24,11 +24,12 @@ class GraphDataLoader:
         - test_ratio: 测试集比例，默认为 20%
         - batch_size: 每批次的图数量
         """
+        self.config=Config()
         self.folder_father = folder_father
         self.encoders1=encoders1
         self.encoders2=encoders2
-        self.test_ratio=test_ratio
-        self.batch_size=batch_size
+        self.test_ratio=self.config.test_ratio
+        self.batch_size=self.config.batch_size
         self.train_data=[]
         self.train_loader=None
         self.test_loader=None
@@ -74,7 +75,8 @@ class GraphDataLoader:
     def load_graphs_from_folder(self, folder_path):
         graphs = []
         ip_mappings = []
-        for sub_folder in os.listdir(folder_path):
+        sub_folders = sorted(os.listdir(folder_path))
+        for sub_folder in sub_folders:
             sub_path = os.path.join(folder_path, sub_folder)
             if os.path.isdir(sub_path):
                 graph, ip_mapping = self.load_graph_from_subfolder(sub_path)

@@ -1,0 +1,12 @@
+dataPath: ../datas_Steal
+device: cuda:0
+class_weights: [1.0, 1.0, 1.0]
+graph_nums: 10
+input_dim: 128
+hidden_dim: 256
+learning_rate: 0.001
+epochs: 50
+test_ratio: 0.2
+batch_size: 1
+redis_host: 10.29.202.222
+redis_port: 6379

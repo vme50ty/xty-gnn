@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-12-23 15:08:21
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-26 17:18:42
+LastEditTime: 2025-01-02 14:57:24
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/makeData.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -66,6 +66,7 @@ class Proxy:
         self.DISK_LOAD_COUNT = random.randint(20, 50)
         self.users = []  # 代理管理的用户
         self.UserNum=0
+        self.beingAttack=0
 
     def add_user(self, user):
         self.users.append(user)
@@ -79,6 +80,7 @@ class Proxy:
         self.DISK_LOAD = 0
         self.MEM_LOAD = 0
         self.DISK_LOAD_COUNT = 0
+        self.beingAttack=0
         self.users=[]
         
     def update_load(self):
@@ -95,6 +97,7 @@ class Proxy:
             user.belong_proxy=self.id
             if isinstance(user, SlowAttacker):
                 # 慢速攻击者的影响
+                self.beingAttack=1
                 self.SEND_KILOBYTES += 0.1 * user.requestCount
                 self.DISK_LOAD_COUNT += 100  # 每个慢速攻击者增加的磁盘访问次数
                 self.CPU_LOAD = min(100, self.CPU_LOAD + random.uniform(10, 30))
@@ -105,7 +108,11 @@ class Proxy:
                 self.MEM_LOAD = min(100, self.MEM_LOAD + random.uniform(30,50))
                 self.RECEIVE_KILOBYTES += random.uniform(50, 80)
                 self.SEND_KILOBYTES += random.uniform(50, 80)
-                
+                self.beingAttack=1
+            
+            if isinstance(user,DirectAttacker):
+                self.beingAttack=1
+
     def show_status(self):
         """打印代理的当前状态"""
         print(f"Proxy {self.proxyname} 状态:")
@@ -178,10 +185,10 @@ def save_to_csv(users, proxies,path):
     with open(proxy_file_path, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['id', 'proxyname', 'SEND_KILOBYTES', 
-                         'DISK_LOAD', 'CPU_LOAD', 'RECEIVE_KILOBYTES', 'MEM_LOAD', 'DISK_LOAD_COUNT', 'UserNum'])
+                         'DISK_LOAD', 'CPU_LOAD', 'RECEIVE_KILOBYTES', 'MEM_LOAD', 'DISK_LOAD_COUNT', 'UserNum','BeingAttack'])
         for proxy in proxies:
             writer.writerow([proxy.id, proxy.proxyname, proxy.SEND_KILOBYTES, proxy.DISK_LOAD, 
-                            proxy.CPU_LOAD, proxy.RECEIVE_KILOBYTES, proxy.MEM_LOAD, proxy.DISK_LOAD_COUNT, proxy.UserNum])
+                            proxy.CPU_LOAD, proxy.RECEIVE_KILOBYTES, proxy.MEM_LOAD, proxy.DISK_LOAD_COUNT, proxy.UserNum,proxy.beingAttack])
             
 def save_labels_to_csv(users,path, filename="label.csv"):
     """
@@ -210,12 +217,12 @@ def save_labels_to_csv(users,path, filename="label.csv"):
 # 主程序
 if __name__ == "__main__":
     # 参数设置
-    num_users =300
-    num_proxies = 15
-    attack_distribution = [0.95, 0.00, 0.03, 0.00]  # 普通用户, 直接攻击者, 慢速攻击者, 高隐蔽攻击者的比例
+    num_users =400
+    num_proxies =35
+    attack_distribution = [0.99, 0.00, 0.00, 0.01]  # 普通用户, 直接攻击者, 慢速攻击者, 高隐蔽攻击者的比例
     
      # 初始化代理路径
-    base_path = '../../datas_Slow/'
+    base_path = '../../datas_Steal/'
     folder_prefix = 'data_folder'
     existing_folders = [folder for folder in os.listdir(base_path)]
     existing_count = len(existing_folders)

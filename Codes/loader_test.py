@@ -2,7 +2,7 @@
 Author: lee12345 15116908166@163.com
 Date: 2024-12-16 10:12:28
 LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-25 20:06:09
+LastEditTime: 2025-01-02 11:18:04
 FilePath: /Gnn/DHGNN-LSTM/Codes/loader_test.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from src import GraphDataLoader,CombinedModel,SequenceEncoder,Config
+import time,os
 
 # import os
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
@@ -47,7 +48,7 @@ model = CombinedModel(config.input_dim, config.hidden_dim)
 model.to(device)
 
 # 定义损失函数和优化器
-class_weights = torch.tensor([1.0, 1.0, 1.0]).to(device)
+class_weights = torch.tensor(config.class_weights).to(device)
 criterion = nn.CrossEntropyLoss(weight=class_weights)
 optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
@@ -130,17 +131,45 @@ def validate_model(model, valid_loader, criterion, device):
     accuracy = correct / total
     return avg_loss, accuracy
 
-print("Starting training...")
-for epoch in range(epochs):
-    train_loss = train_model(model, train_loader, criterion, optimizer, device)
-    valid_loss, valid_accuracy = validate_model(model, valid_loader, criterion, device)
-    _, train_accuracy = validate_model(model, train_loader, criterion, device)
+def save_config(config, save_path):
+    """保存配置到文件"""
+    with open(save_path, 'w') as f:
+        for key, value in config.__dict__.items():
+            f.write(f"{key}: {value}\n")
 
-    print(f"Epoch {epoch + 1}/{epochs}, "
-          f"Train Loss: {train_loss:.4f}, "
-          f"Validation Loss: {valid_loss:.4f}, "
-          f"train Accuracy: {train_accuracy:.4f},"
-          f"Validation Accuracy: {valid_accuracy:.4f}"
-        )
 
-print("Training completed!")
+time_now = time.strftime("%Y%m%d-%H%M%S")
+result_dir=f'../result/{time_now}'
+os.makedirs(result_dir, exist_ok=True)
+
+# 将config存储在resultTest文件
+save_config(config, os.path.join(result_dir, 'config.txt'))
+
+log_file_path = os.path.join(result_dir, 'training_log.txt')
+
+# 打开日志文件
+with open(log_file_path, 'w',buffering=1) as log_file:
+    print("Starting training...")
+    log_file.write("Starting training...\n")
+
+    for epoch in range(config.epochs):
+        train_loss = train_model(model, train_loader, criterion, optimizer, config.device)
+        valid_loss, valid_accuracy = validate_model(model, valid_loader, criterion, config.device)
+        _, train_accuracy = validate_model(model, train_loader, criterion, config.device)
+
+        # 输出并记录每个epoch的结果
+        log_message = (f"Epoch {epoch + 1}/{config.epochs}, "
+                       f"Train Loss: {train_loss:.4f}, "
+                       f"Validation Loss: {valid_loss:.4f}, "
+                       f"Train Accuracy: {train_accuracy:.4f}, "
+                       f"Validation Accuracy: {valid_accuracy:.4f}\n")
+        print(log_message.strip())
+        log_file.write(log_message)
+
+    print("Training completed!")
+    log_file.write("Training completed!\n")
+
+# 保存模型
+model_save_path = os.path.join(result_dir, 'model.pth')
+torch.save(model, model_save_path)
+print(f"Model saved to {model_save_path}")

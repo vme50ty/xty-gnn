@@ -1,0 +1,12 @@
+Starting training...
+Epoch 1/10, Train Loss: 0.4269, Validation Loss: 0.1312, Train Accuracy: 0.9757, Validation Accuracy: 0.9723
+Epoch 2/10, Train Loss: 0.1237, Validation Loss: 0.1257, Train Accuracy: 0.9757, Validation Accuracy: 0.9723
+Epoch 3/10, Train Loss: 0.1150, Validation Loss: 0.1114, Train Accuracy: 0.9757, Validation Accuracy: 0.9723
+Epoch 4/10, Train Loss: 0.1011, Validation Loss: 0.0979, Train Accuracy: 0.9757, Validation Accuracy: 0.9723
+Epoch 5/10, Train Loss: 0.0873, Validation Loss: 0.0845, Train Accuracy: 0.9757, Validation Accuracy: 0.9723
+Epoch 6/10, Train Loss: 0.0733, Validation Loss: 0.0717, Train Accuracy: 0.9757, Validation Accuracy: 0.9723
+Epoch 7/10, Train Loss: 0.0611, Validation Loss: 0.0592, Train Accuracy: 0.9757, Validation Accuracy: 0.9723
+Epoch 8/10, Train Loss: 0.0513, Validation Loss: 0.0509, Train Accuracy: 0.9836, Validation Accuracy: 0.9831
+Epoch 9/10, Train Loss: 0.0432, Validation Loss: 0.0439, Train Accuracy: 0.9836, Validation Accuracy: 0.9831
+Epoch 10/10, Train Loss: 0.0373, Validation Loss: 0.0382, Train Accuracy: 0.9836, Validation Accuracy: 0.9831
+Training completed!
