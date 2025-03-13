@@ -1,8 +1,8 @@
 '''
 Author: lee12345 15116908166@163.com
 Date: 2024-10-28 10:11:18
-LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2024-12-30 15:31:11
+LastEditors: vme50ty 15116908166@163.com
+LastEditTime: 2025-03-12 23:37:19
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/make_graph.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -35,7 +35,6 @@ class LoadHeteroGraph:
         # 加载节点数据（从CSV文件读取数据，index_col用于指定节点ID列）
         
         df = pd.read_csv(path, index_col=index_col, **kwargs)
-        # 如果指定了需要忽略的列，则从DataFrame中移除这些列
         # 如果指定了需要忽略的列，则从DataFrame中移除这些列
         if drop_cols is not None:
             if isinstance(drop_cols, list):  # 如果是列表形式

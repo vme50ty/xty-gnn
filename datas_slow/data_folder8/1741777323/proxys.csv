@@ -1,0 +1,6 @@
+id,proxyname,SEND_ratio,DISK_ratio,CPU_ratio,RECEIVE_ratio,MEM_ratio,DISK_COUNT_ratio,UserNum,BeingAttack
+1,proxy1,0.53,0.88,0.69,0.76,0.98,0.68,17,0
+2,proxy2,1.0,1.16,1.91,1.0,2.54,1.64,21,0
+3,proxy3,1.13,1.0,1.64,1.06,2.61,1.6,20,0
+4,proxy4,0.68,1.05,1.0,0.98,0.98,0.68,17,0
+5,proxy5,1.02,0.99,0.94,1.47,1.0,1.0,25,0

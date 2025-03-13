@@ -1,8 +1,8 @@
 '''
 Author: lee12345 15116908166@163.com
 Date: 2024-12-16 10:12:28
-LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2025-01-02 11:18:04
+LastEditors: vme50ty 15116908166@163.com
+LastEditTime: 2025-03-13 09:34:44
 FilePath: /Gnn/DHGNN-LSTM/Codes/loader_test.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -17,15 +17,6 @@ import time,os
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 config=Config()
-       
-ip_encoder = SequenceEncoder(model_path='/home/lzy/Gnn/DHGNN-LSTM/Codes/src/model/')
-
-# encoders1 = {
-#     'userIP': ip_encoder  # 将 IP 列的编码器传入
-# }
-# encoders2 = {
-#     'proxyname': ip_encoder  # 将 IP 列的编码器传入
-# }
 
 path=config.dataPath
 
@@ -38,8 +29,6 @@ valid_loader=dataLoader1.get_valid_loader()
 
 # 定义超参数
 epochs = config.epochs
-
-time_deltas = [5,10,10,10,10,10,10,10,10]   #时间间隔
 
 # 初始化模型
 print("Initializing model...")
@@ -64,7 +53,7 @@ def train_model(model, train_loader, criterion, optimizer, device):
         optimizer.zero_grad()
         
         # 获取输入数据
-        graphs, ips, labels = batch 
+        graphs, ips, labels, time_deltas= batch 
         graphs = [graph.to(device) for graph in graphs]
         ips = [
             {key: val.to(device) if isinstance(val, torch.Tensor) else val for key, val in ip_dict.items()}
@@ -99,7 +88,7 @@ def validate_model(model, valid_loader, criterion, device):
 
     with torch.no_grad():
         for batch in valid_loader:
-            graphs, ips, labels = batch 
+            graphs, ips, labels,time_deltas = batch 
             graphs = [graph.to(device) for graph in graphs]
             ips = [
                 {key: val.to(device) if isinstance(val, torch.Tensor) else val for key, val in ip_dict.items()}
@@ -156,6 +145,8 @@ with open(log_file_path, 'w',buffering=1) as log_file:
         train_loss = train_model(model, train_loader, criterion, optimizer, config.device)
         valid_loss, valid_accuracy = validate_model(model, valid_loader, criterion, config.device)
         _, train_accuracy = validate_model(model, train_loader, criterion, config.device)
+        
+
 
         # 输出并记录每个epoch的结果
         log_message = (f"Epoch {epoch + 1}/{config.epochs}, "
@@ -163,6 +154,8 @@ with open(log_file_path, 'w',buffering=1) as log_file:
                        f"Validation Loss: {valid_loss:.4f}, "
                        f"Train Accuracy: {train_accuracy:.4f}, "
                        f"Validation Accuracy: {valid_accuracy:.4f}\n")
+        if valid_accuracy>=0.999 and train_accuracy>=0.999:
+            break
         print(log_message.strip())
         log_file.write(log_message)
 

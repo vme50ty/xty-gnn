@@ -1,8 +1,8 @@
 '''
 Author: lee12345 15116908166@163.com
 Date: 2024-11-20 09:45:23
-LastEditors: lee12345 15116908166@163.com
-LastEditTime: 2025-01-02 14:42:48
+LastEditors: vme50ty 15116908166@163.com
+LastEditTime: 2025-03-12 23:58:25
 FilePath: /Gnn/DHGNN-LSTM/Codes/src/dataLoader.py
 Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
@@ -12,6 +12,7 @@ from torch_geometric.loader import DataLoader
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import torch
+import numpy as np
 
 class GraphDataLoader:
     def __init__(self,folder_father,encoders1=None, encoders2=None,  batch_size=1):
@@ -75,7 +76,13 @@ class GraphDataLoader:
     def load_graphs_from_folder(self, folder_path):
         graphs = []
         ip_mappings = []
-        sub_folders = sorted(os.listdir(folder_path))
+        sub_folders = sorted([f for f in os.listdir(folder_path) if f.isdigit()], key=int)  # 确保按时间排序
+        time_delays = [5]  # 初始化，第一个时间间隔固定为 5
+        if len(sub_folders) > 1:
+            # 计算时间间隔：当前文件夹时间戳 - 上一个文件夹时间戳
+            timestamps = [int(folder) for folder in sub_folders]  # 转换为整数时间戳
+            time_diffs = np.diff(timestamps).tolist()  # 计算相邻文件夹时间差
+            time_delays.extend(time_diffs)  # 追加时间间隔
         for sub_folder in sub_folders:
             sub_path = os.path.join(folder_path, sub_folder)
             if os.path.isdir(sub_path):
@@ -85,7 +92,7 @@ class GraphDataLoader:
                 # print(ip_mapping)
                 graphs.append(graph)
                 ip_mappings.append(ip_mapping)
-        return graphs , ip_mappings
+        return graphs , ip_mappings ,time_delays
     
     def process_data(self):
         folders = [os.path.join(self.folder_father, folder) 
@@ -100,11 +107,11 @@ class GraphDataLoader:
     def create_loader(self, folder_list):
         all_data = []
         for folder in folder_list:
-            graphs, ip_mappings = self.load_graphs_from_folder(folder)  # 获取 graphs 和 ip_mappings
+            graphs, ip_mappings,timedelates = self.load_graphs_from_folder(folder)  # 获取 graphs 和 ip_mappings
             labels = self.get_folder_label(folder)  # 获取当前 folder 的标签,在每个folder文件夹下，存在label.csv
             
             # 将 graphs 和 ip_mappings 一起存储
-            all_data.append((graphs, ip_mappings, labels))
+            all_data.append((graphs, ip_mappings, labels,timedelates))
         
         # DataLoader 中返回完整的数据
         return DataLoader(all_data, batch_size=self.batch_size, shuffle=True)
@@ -136,8 +143,8 @@ class GraphDataLoader:
         df = pd.read_csv(label_file)
         
         # 确保文件格式正确
-        if not {"id", "normal", "abnormal", "unknown"}.issubset(df.columns):
-            raise ValueError(f"Label file {label_file} has incorrect format. Expected columns: 'id', 'normal', 'abnormal', 'unknown'")
+        if not {"id", "normal", "direct", "slow",'steal'}.issubset(df.columns):
+            raise ValueError(f"Label file {label_file} has incorrect format. Expected columns: 'id', 'normal', 'direct', 'slow','steal'")
         
         # 将标签转化为数值
         labels = {}
@@ -145,10 +152,12 @@ class GraphDataLoader:
             user_ip = row["id"]
             if row["normal"] == 1:
                 labels[user_ip] = 0  # normal
-            elif row["abnormal"] == 1:
+            elif row["direct"] == 1:
                 labels[user_ip] = 1  # abnormal
-            elif row["unknown"] == 1:
+            elif row["slow"] == 1:
                 labels[user_ip] = 2  # unknown
+            elif row["steal"] == 1:
+                labels[user_ip] = 3
             else:
                 raise ValueError(f"Invalid label in row: {row}")
         
